@@ -19,16 +19,18 @@ except:
 keys = json.load(f)
 f.close()
 
+#Paths to things that the code uses 
+path_maps = '../data/'
+
 # Read the json containing the information for each project
-f = open('/mnt/c/Users/nicolas/Documents/2021_IWA/iwa-web/data/projects.json','r')
+#f = open('/mnt/c/Users/nicolas/Documents/2021_IWA/iwa-web/data/projects.json','r')
+f = open(path_maps+'/projects.json','r')
 watersheds = json.load(f)
 f.close()
 
 #Get the access tocken to mapbox
 mapbox_access_token = keys['mapbox']['token']
 
-#Paths to things that the code uses 
-path_maps = '/mnt/c/Users/nicolas/Documents/2021_IWA/iwa-web/data/'
 
 ###########################################################################################################################################################################
 #Define the class that will perform all
@@ -38,13 +40,33 @@ class misc:
         self.wat_name = 'clearcreek'
         self.watershed = watersheds[self.wat_name]        
         self.usgs = pd.read_csv('%s%s/usgs.csv' % (path_maps,self.wat_name))
-        self.projects = pd.read_csv('%s%s/projects.csv' % (path_maps,self.wat_name))
+        self.projects = pd.read_csv('%s%s/project_locations.csv' % (path_maps,self.wat_name))
+        self.__projects_assign_id__()
         self.network = pd.read_csv('%s%s/net.csv' % (path_maps,self.wat_name), index_col = 0)
-
+        #Define watersheds with projects
         projects = []
         for k in watersheds.keys():
             projects.append({'value':k, 'label':watersheds[k]['name']})
         self.proj_names = projects
+        #Define selected items
+        self.selected_project = None
+        self.selected_usgs = None
+        self.selected_link = None
+
+    def update_click_selection(self, text):
+        if text.startswith('CC'):
+            self.selected_project = text
+        elif text.startswith('id'):
+            self.selected_usgs = text
+        else:
+            self.selected_link = int(text)
+        
+    def __projects_assign_id__(self):
+        self.projects['prac_id'] = 0
+        ids = np.arange(1,self.projects.PRACTICE.unique().size+1)
+        for id, name in zip(ids, self.projects.PRACTICE.unique()):
+            self.projects.loc[self.projects['PRACTICE'] == name,'prac_id'] = id
+
 
     def plot_map(self):
                 
@@ -60,25 +82,47 @@ class misc:
         f.close()
         color_net = '#045a8d'
 
+        #Adds the projects in the region
+        fig = go.Figure(go.Scattermapbox(
+                mode = 'markers',
+                lon = self.projects.Long,
+                lat = self.projects.Lat,
+                marker=go.scattermapbox.Marker(
+                    size=17.5,
+                    color='black',                    
+                ),                
+                text=None,  
+            ))
+        t = ['%s' % self.projects.loc[i,'Project'] for i in self.projects.index]
+        fig.add_trace(go.Scattermapbox(
+            mode = 'markers',
+            lon = self.projects.Long,
+            lat = self.projects.Lat,
+            marker=go.scattermapbox.Marker(
+                    size=15,
+                    #symbol = 'circle-stroked',
+                    color = 'green'),
+            text = t,
+            hoverinfo = 'text'
+        ))
 
         #Adds the USGS gauges in the region
         t = ['id:0%d' % self.usgs.loc[i,'USGS_ID'] for i in self.usgs.index]
-        fig = go.Figure(go.Scattermapbox(
+        fig.add_trace(go.Scattermapbox(
+            mode = "markers",
+            lon = self.usgs.x,
+            lat = self.usgs.y,
+            marker = go.scattermapbox.Marker(
+                    size=17.5,
+                    color = 'black'),
+            text = None))
+        fig.add_trace(go.Scattermapbox(
             mode = "markers",
             lon = self.usgs.x,
             lat = self.usgs.y,
             marker = go.scattermapbox.Marker(
                     size=15,
-                    color = 1),
-            text = t))
-
-        #Adds the USGS gauges in the region
-        t = ['%s' % self.projects.loc[i,'ID'] for i in self.projects.index]
-        fig = fig.add_trace(go.Scattermapbox(
-            mode = "markers",
-            lon = self.projects.x,
-            lat = self.projects.y,
-            marker = {'size': 20},
+                    color = 'blue'),
             text = t))
 
         #Adds the centroids of the network
@@ -88,7 +132,8 @@ class misc:
             lon = self.network.x,
             lat = self.network.y,
             marker = {'size': 3, 'color':color_net},
-            text = t))
+            text = t,
+            hoverinfo='none'))
 
         fig.update_layout(
             hovermode='closest',

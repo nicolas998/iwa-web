@@ -49,7 +49,7 @@ app.layout = html.Div([
         # Map
         dcc.Graph(
             id = 'plot-map',
-            clickData = {'points': [{'text': 'unclicked'}]},
+            clickData = {'points': [{'text': 'CC:None'}]},
             figure = fig_map,
             style={'width': '100vh', 'height': '57vh'},
             config={"toImageButtonOptions": {"scale":4, "filename": 'event_streamflow'}}
@@ -69,7 +69,12 @@ app.layout = html.Div([
     Input('plot-map','clickData')
 )
 def get_info_from_map(clickData):
-    print(clickData['points'][0]['text'])
+    mi.update_click_selection(clickData['points'][0]['text'])
+    print(mi.selected_link)
+    print(mi.selected_usgs)
+    print(mi.selected_project)
+    print('---------')
+    #print(clickData['points'][0]['text'])
     return clickData['points'][0]['text']
 
 ###########################################################################################################################################################################

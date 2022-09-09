@@ -1,3 +1,4 @@
 source/keys.json
 source/test.py
 data/
+source/__pycache__/*
