@@ -7,7 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 import json 
 import geopandas as gp 
-
+import base64
 ###########################################################################################################################################################################
 #Set global variables
 
@@ -31,6 +31,15 @@ f.close()
 #Get the access tocken to mapbox
 mapbox_access_token = keys['mapbox']['token']
 
+#Project images 
+proj_images = {"GRADE STABILIZATION": "grade_stabilizations.jpg",
+     "POND": "ponds.jpg", 
+     "POND & FRINGE WETLAND": "ponds.jpg",
+     "WASCOB":"wascobs.jpg",     
+    "GRASSED WATERWAY":"grass_waterways.png",
+     "WETLAND RESTORATION":"wetlands.png",     
+    "FLOODPLAIN RESTORATION":"terraces.jpg",
+     "PERENNIAL COVER":"perennial_cover.jpg"}
 
 ###########################################################################################################################################################################
 #Define the class that will perform all
@@ -52,15 +61,30 @@ class misc:
         self.selected_project = None
         self.selected_usgs = None
         self.selected_link = None
+        #Image 
+        self.img_png = '../assets/grade_stabilizations.jpg'
+        self.img_base64 = base64.b64encode(open(self.img_png, 'rb').read()).decode('ascii')
+        self.img_source = 'data:image/png;base64,{}'.format(self.img_base64)
 
     def update_click_selection(self, text):
         if text.startswith('CC'):
             self.selected_project = text
-        elif text.startswith('id'):
+            self.__projects_update_image__()
+        elif text.startswith('US'):
             self.selected_usgs = text
         else:
             self.selected_link = int(text)
-        
+
+    def __projects_update_image__(self):
+        self.proj_practice = self.projects.loc[self.projects['Project'] == self.selected_project,'PRACTICE']
+        if self.proj_practice.size > 0:
+            self.proj_practice = self.projects.loc[self.projects['Project'] == self.selected_project,'PRACTICE'].values[0]
+            #Get the practice image
+            self.img_png = '../assets/%s' % proj_images[self.proj_practice]
+            #print(practice_png)
+            self.img_base64 = base64.b64encode(open(self.img_png, 'rb').read()).decode('ascii')
+            self.img_source = 'data:image/png;base64,{}'.format(self.img_base64)
+
     def __projects_assign_id__(self):
         self.projects['prac_id'] = 0
         ids = np.arange(1,self.projects.PRACTICE.unique().size+1)
@@ -107,7 +131,7 @@ class misc:
         ))
 
         #Adds the USGS gauges in the region
-        t = ['id:0%d' % self.usgs.loc[i,'USGS_ID'] for i in self.usgs.index]
+        t = ['USGS:0%d' % self.usgs.loc[i,'USGS_ID'] for i in self.usgs.index]
         fig.add_trace(go.Scattermapbox(
             mode = "markers",
             lon = self.usgs.x,

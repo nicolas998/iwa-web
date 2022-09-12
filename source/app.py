@@ -6,10 +6,11 @@ from dash.dependencies import Input, Output
 from dash import html
 from datetime import date
 import numpy as np
-from misc import misc
+from misc import misc, proj_images
 #Local packages
 import plotly.express as px
 import plotly.graph_objects as go
+import base64
 
 ###########################################################################################################################################################################
 # Initialize variables 
@@ -30,7 +31,9 @@ server = app.server
 
 app.layout = html.Div([
 
-    #First Column with stuff
+    ###################################################################################################################################
+    #First Column contains the watershed selector and the map with its information
+
     html.Div(children=[        
         # Map control panel
         html.Div(children=[ 
@@ -42,8 +45,7 @@ app.layout = html.Div([
                 style={
                     'width':'140px'
                 }
-            ),
-            html.H5(id = 'for-display'),
+            )            
         ]),
 
         # Map
@@ -51,10 +53,24 @@ app.layout = html.Div([
             id = 'plot-map',
             clickData = {'points': [{'text': 'CC:None'}]},
             figure = fig_map,
-            style={'width': '100vh', 'height': '57vh'},
+            style={'width': '100vh', 'height': '60vh'},
             config={"toImageButtonOptions": {"scale":4, "filename": 'event_streamflow'}}
-        )
-    ])
+        ),
+        html.Div(children=[
+            html.Div(children = [
+                html.H6(id = 'project-id'),
+                html.Div('Practice: '),
+                html.Div(id = 'project-practice'),
+            ]), #style={'display': 'flex', 'flex-direction': 'row'}),            
+            html.Img(id = 'practice-image', src=mi.img_source)
+            #html.Img(id = 'practice-image')
+        ])
+    ]),
+
+    ###################################################################################################################################
+    #Second column has: Clicked project description, project impact plot, GHOST validation
+
+   
 
 ])
 
@@ -65,17 +81,16 @@ app.layout = html.Div([
 
 #Get the info of the clicked dot in the map 
 @app.callback(
-    Output('for-display','children'),
+    Output('project-id','children'),
+    Output('project-practice','children'),
+    Output('practice-image','src'),
     Input('plot-map','clickData')
 )
 def get_info_from_map(clickData):
-    mi.update_click_selection(clickData['points'][0]['text'])
-    print(mi.selected_link)
-    print(mi.selected_usgs)
-    print(mi.selected_project)
-    print('---------')
-    #print(clickData['points'][0]['text'])
-    return clickData['points'][0]['text']
+    #Updates the selected project, link, usgs gauge
+    mi.update_click_selection(clickData['points'][0]['text'])    
+    #practice_base64 = base64.b64encode(open(test_png, 'rb').read()).decode('ascii')
+    return mi.selected_project, mi.proj_practice,mi.img_source
 
 ###########################################################################################################################################################################
 #Excecution
