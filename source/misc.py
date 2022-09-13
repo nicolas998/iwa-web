@@ -60,7 +60,7 @@ class misc:
         #Define selected items
         self.selected_project = None
         self.selected_usgs = None
-        self.selected_link = None
+        self.selected_link = 1
         #Image 
         self.img_png = '../assets/grade_stabilizations.jpg'
         self.img_base64 = base64.b64encode(open(self.img_png, 'rb').read()).decode('ascii')
@@ -74,6 +74,61 @@ class misc:
             self.selected_usgs = text
         else:
             self.selected_link = int(text)
+            #self.plot_selected_link()
+
+    def plot_selected_link_streamflow(self):
+        #Read the data of the selected link (This has to be changed)
+        path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
+        q = pd.read_csv(path2simulations, index_col=0)
+        q = q.loc[300:600]
+        q.loc[q['Qcontrol']<0,'Qcontrol'] = np.nan
+        #Make the plot 
+        fig = go.Figure()
+        fig.add_trace(
+                go.Scatter(x=list(q.index), 
+                    y=list(q.Qcontrol), 
+                    name = 'Control', line=dict(width=4)))
+        fig.add_trace(
+                go.Scatter(x=list(q.index), y=list(q.Qproject), 
+                    name = 'Project', line=dict(width=4)))
+        fig.update_layout(
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01),
+            showlegend = False,
+            margin=dict(t=0, b=0, l=0, r=0),
+            yaxis_title = "Streamflow [m3/s]",
+        )
+        return fig
+
+    def plot_selected_link_totalvol(self):
+        #Read the data of the selected link (This has to be changed)
+        path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
+        q = pd.read_csv(path2simulations, index_col=0)
+        #q = q.loc[300:600]
+        #q.loc[q['Qcontrol']<0,'Qcontrol'] = np.nan
+        #Make the plot 
+        fig = go.Figure()
+        fig.add_trace(
+                go.Scatter(x=list(q.index), 
+                    y=list(q.Vcum_control), 
+                    name = 'Control', line=dict(width=4)))
+        fig.add_trace(
+                go.Scatter(x=list(q.index), y=list(q.Vcum_project), 
+                    name = 'Project', line=dict(width=4)))
+        fig.update_layout(
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01),
+            showlegend = True,
+            margin=dict(t=0, b=0, l=0, r=0),
+            yaxis_title = "Total volume [m3]",
+        )
+        return fig
 
     def __projects_update_image__(self):
         self.proj_practice = self.projects.loc[self.projects['Project'] == self.selected_project,'PRACTICE']

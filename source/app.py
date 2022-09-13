@@ -17,7 +17,8 @@ import base64
 
 mi = misc()
 fig_map = mi.plot_map()
-
+fig_proj_noproj_streamflow = mi.plot_selected_link_streamflow()
+fig_proj_noproj_totalvol = mi.plot_selected_link_totalvol()
 
 ###########################################################################################################################################################################
 # Define the server 
@@ -62,17 +63,35 @@ app.layout = html.Div([
                 html.Div('Practice: '),
                 html.Div(id = 'project-practice'),
             ]), #style={'display': 'flex', 'flex-direction': 'row'}),            
-            html.Img(id = 'practice-image', src=mi.img_source)
-            #html.Img(id = 'practice-image')
+            html.Img(id = 'practice-image', src=mi.img_source)            
         ])
     ]),
 
     ###################################################################################################################################
     #Second column has: Clicked project description, project impact plot, GHOST validation
-
+    html.Div(children=[
+        html.Div(
+            children = [
+                html.Div('Network segment:'),
+                html.Div(id = 'network-segment'),
+            ], style={'display': 'flex', 'flex-direction': 'row'}),
+        html.Div(children=[
+            dcc.Graph(
+                id = 'plot-link-streamflow',
+                figure = fig_proj_noproj_streamflow,
+                style = {'width': '45vh', 'height': '45vh'},            
+            ),
+            dcc.Graph(
+                id = 'plot-link-totalvol',
+                figure = fig_proj_noproj_totalvol,
+                style = {'width': '45vh', 'height': '45vh'},            
+            )
+        ], style = {'display':'flex','flex-direction':'row'})
+        
+    ])
    
 
-])
+], style={'display': 'flex', 'flex-direction': 'row'})
 
 
 
@@ -84,13 +103,19 @@ app.layout = html.Div([
     Output('project-id','children'),
     Output('project-practice','children'),
     Output('practice-image','src'),
+    Output('plot-link-streamflow','figure'),
+    Output('plot-link-totalvol','figure'),
+    Output('network-segment','children'),
     Input('plot-map','clickData')
 )
 def get_info_from_map(clickData):
     #Updates the selected project, link, usgs gauge
     mi.update_click_selection(clickData['points'][0]['text'])    
-    #practice_base64 = base64.b64encode(open(test_png, 'rb').read()).decode('ascii')
-    return mi.selected_project, mi.proj_practice,mi.img_source
+    #Make the project / no project figure
+    fig_proj_noproj_st = mi.plot_selected_link_streamflow()
+    fig_proj_noproj_vol = mi.plot_selected_link_totalvol()
+    #Returns: the selected project name, practice type, and practice image
+    return mi.selected_project, mi.proj_practice,mi.img_source, fig_proj_noproj_st, fig_proj_noproj_vol, str(mi.selected_link)
 
 ###########################################################################################################################################################################
 #Excecution
