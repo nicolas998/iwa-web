@@ -74,7 +74,6 @@ class misc:
             self.selected_usgs = text
         else:
             self.selected_link = int(text)
-            #self.plot_selected_link()
 
     def plot_selected_link_streamflow(self):
         #Read the data of the selected link (This has to be changed)
@@ -99,7 +98,8 @@ class misc:
                 x=0.01),
             showlegend = False,
             margin=dict(t=0, b=0, l=0, r=0),
-            yaxis_title = "Streamflow [m3/s]",
+            yaxis_title = "Streamflow [cfs]",
+            xaxis_title = 'Time [seconds]',
         )
         return fig
 
@@ -127,6 +127,7 @@ class misc:
             showlegend = True,
             margin=dict(t=0, b=0, l=0, r=0),
             yaxis_title = "Total volume [m3]",
+            xaxis_title = 'Time [seconds]',
         )
         return fig
 

@@ -38,6 +38,7 @@ app.layout = html.Div([
     html.Div(children=[        
         # Map control panel
         html.Div(children=[ 
+            html.Div('Watershed: '),
             dcc.Dropdown(
                 id = 'drop-project-selector',
                 options = mi.proj_names,
@@ -47,7 +48,7 @@ app.layout = html.Div([
                     'width':'140px'
                 }
             )            
-        ]),
+        ]),#, style = {'display':'flex','flex-direction':'row'}),
 
         # Map
         dcc.Graph(
@@ -72,19 +73,19 @@ app.layout = html.Div([
     html.Div(children=[
         html.Div(
             children = [
-                html.Div('Network segment:'),
+                html.Div('Streamflow reduction due to projects:'),
                 html.Div(id = 'network-segment'),
             ], style={'display': 'flex', 'flex-direction': 'row'}),
         html.Div(children=[
             dcc.Graph(
                 id = 'plot-link-streamflow',
                 figure = fig_proj_noproj_streamflow,
-                style = {'width': '45vh', 'height': '45vh'},            
+                style = {'width': '45vh', 'height': '35vh'},            
             ),
             dcc.Graph(
                 id = 'plot-link-totalvol',
                 figure = fig_proj_noproj_totalvol,
-                style = {'width': '45vh', 'height': '45vh'},            
+                style = {'width': '45vh', 'height': '35vh'},            
             )
         ], style = {'display':'flex','flex-direction':'row'})
         
