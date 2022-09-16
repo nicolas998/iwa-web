@@ -7,6 +7,8 @@ import numpy as np
 import plotly.graph_objects as go
 import json 
 import geopandas as gp 
+import dash_bootstrap_components as dbc
+from dash import html
 import base64
 ###########################################################################################################################################################################
 #Set global variables
@@ -59,21 +61,66 @@ class misc:
         self.proj_names = projects
         #Define selected items
         self.selected_project = None
-        self.selected_usgs = None
+        self.selected_usgs = '0%d' % self.usgs.loc[0,'USGS_ID']
+        self.selected_usgs_descriptor = '%s, Area: %.1f km2' % tuple(self.usgs.loc[0,['SITE_NAME','DRAIN_AREA']].values.tolist())
         self.selected_link = 1
+        self.active_tab = "tab_flood_reduction"
         #Image 
         self.img_png = '../assets/grade_stabilizations.jpg'
         self.img_base64 = base64.b64encode(open(self.img_png, 'rb').read()).decode('ascii')
         self.img_source = 'data:image/png;base64,{}'.format(self.img_base64)
+        #Create an example table 
+        self.project_table()
+
+    def project_table(self):
+        table_header = [
+            html.Thead(html.Tr([html.Th("First Name"), html.Th("Last Name")]))
+        ]
+        row1 = html.Tr([html.Td("Arthur"), html.Td("Dent")])
+        row2 = html.Tr([html.Td("Ford"), html.Td("Prefect")])
+        row3 = html.Tr([html.Td("Zaphod"), html.Td("Beeblebrox")])
+        row4 = html.Tr([html.Td("Trillian"), html.Td("Astra")])
+        table_body = [html.Tbody([row1, row2, row3, row4])]
+        self.table = dbc.Table(table_header + table_body, bordered=True)
 
     def update_click_selection(self, text):
         if text.startswith('CC'):
             self.selected_project = text
             self.__projects_update_image__()
+            self.active_tab = "tab_project_info"
         elif text.startswith('US'):
-            self.selected_usgs = text
+            self.selected_usgs = text[5:]
+            number = int(self.selected_usgs)            
+            self.selected_usgs_descriptor = '%s, Area: %.1f km2' % tuple(self.usgs.loc[self.usgs['USGS_ID'] == number,['SITE_NAME','DRAIN_AREA']].values.tolist()[0])
+            self.active_tab = "tab_GHOST_performance"
         else:
             self.selected_link = int(text)
+            self.active_tab = "tab_flood_reduction"
+
+    def plot_selected_usgs_gauge(self):
+        #Read the data 
+        q = pd.read_pickle('%s%s/%s.gzip' % (path_maps,self.wat_name, self.selected_usgs))        
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(x=list(q.index), 
+                    y=list(q['usgs_dis [cms]']), 
+                    name = 'Observed', line=dict(width=4.5)))
+        fig.add_trace(
+            go.Scatter(x=list(q.index), 
+                    y=list(q['ghost_dis [cms]']), 
+                    name = 'Simulated', line=dict(width=3)))
+        fig.update_layout(
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01),
+            showlegend = True,
+            margin=dict(t=0, b=0, l=0, r=0),
+            yaxis_title = "Streamflow [cms]",
+            xaxis_title = 'Time [days]',            
+        )
+        return fig
 
     def plot_selected_link_streamflow(self):
         #Read the data of the selected link (This has to be changed)
