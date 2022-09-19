@@ -39,14 +39,18 @@ tab1_content = dbc.Card(
                 dcc.Graph(
                     id = 'plot-link-streamflow',
                     figure = fig_proj_noproj_streamflow,
-                    style = {'width': '40vh', 'height': '40vh'},            
+                    style = {'width': '42vh', 'height': '40vh'},            
                 ),
                 dcc.Graph(
                     id = 'plot-link-totalvol',
                     figure = fig_proj_noproj_totalvol,
-                    style = {'width': '40vh', 'height': '40vh'},            
+                    style = {'width': '42vh', 'height': '40vh'},            
                 ),
-                mi.table                        
+                dbc.Table(
+                    mi.table_link_reduction,
+                    id = "table-reduction",
+                    bordered=True
+                )                        
             ])
         ]
     ),color="secondary", outline=True
@@ -57,9 +61,11 @@ tab2_content = dbc.Card(
         [            
             dbc.Row([
                 dbc.Col([
-                    html.H6(id = 'project-identifier'),
-                    html.Div('Practice: '),
-                    html.Div(id = 'project-practice')
+                    dbc.Table(
+                        mi.table_project_desc,
+                        id = "table-project",
+                        bordered=True
+                    )                
                 ], width=6),
                 dbc.Col([
                     html.Img(id = 'practice-image', src=mi.img_source)
@@ -68,7 +74,7 @@ tab2_content = dbc.Card(
         ]
     ),color="secondary", outline=True, className="w-75 h-50",)
 
-tab3_content = dbc.Card(
+tab3_1 = dbc.Card(
     dbc.CardBody(
         [
             dbc.Label(id = "selected-usgs"),
@@ -76,10 +82,32 @@ tab3_content = dbc.Card(
                 id = 'plot-usgs-streamflow',
                 figure = fig_ghost_sim,
                 style = {'width': '90vh', 'height': '40vh'},            
-            ),            
+            ),
+            dbc.Table(
+                mi.table_ghost_perf,
+                id = "table-ghost",
+                bordered=True
+                )            
         ]
     ),color="secondary", outline=True
 )
+
+tab3_2 = dbc.Card(
+    dbc.CardBody(
+        [
+            dbc.Label("Foo"),            
+        ]
+    ),color="secondary", outline=True
+)
+
+tab3_content = dbc.Tabs([
+    dbc.Tab(tab3_1, tab_id = "tab_ghost_1", label="Streamflow"),
+    dbc.Tab(tab3_2, tab_id = "tab_ghost_2", label="Annual metrics"),    
+    dbc.Tab(tab3_2, tab_id = "tab_ghost_3", label="Seasonal metrics"),    
+    dbc.Tab(tab3_2, tab_id = "tab_ghost_4", label="Peak flows"),    
+])
+
+
 
 ###########################################################################################################################################################################
 #Web page layout 
@@ -103,7 +131,7 @@ app.layout = dbc.Container([
                 id = 'plot-map',
                 clickData = {'points': [{'text': 'CC:None'}]},
                 figure = fig_map,
-                style={'width': '100vh', 'height': '60vh'},
+                style={'width': '95vh', 'height': '60vh'},
                 config={"toImageButtonOptions": {"scale":4, "filename": 'event_streamflow'}}
             ),
         ], width = 6),
@@ -126,14 +154,17 @@ app.layout = dbc.Container([
 
 # #Get the info of the clicked dot in the map 
 @app.callback(
-    Output('project-identifier','children'),
-    Output('project-practice','children'),
+    #Output('project-identifier','children'),
+    Output('table-project','children'),
     Output('practice-image','src'),
     Output('plot-link-streamflow','figure'),
     Output('plot-link-totalvol','figure'),
     Output('plot-usgs-streamflow','figure'),
     Output('selected-usgs','children'),
+    Output('table-reduction','children'),
+    Output('table-ghost','children'),
     Output('tabs','active_tab'),
+    Output('plot-map','figure'),
     Input('plot-map','clickData')
 )
 def get_info_from_map(clickData):
@@ -142,10 +173,17 @@ def get_info_from_map(clickData):
     #Make the project / no project figure
     fig_proj_noproj_st = mi.plot_selected_link_streamflow()
     fig_proj_noproj_vol = mi.plot_selected_link_totalvol()
+    #Make the ghost performance figure
     fig_ghost_sim = mi.plot_selected_usgs_gauge()
+    #Update the map figure
+    fig_map = mi.plot_map()
+    #Update the tables 
+    mi.table_segment_reduction()
+    mi.table_project_description()
+    mi.table_ghost_performance()
     #Returns: the selected project name, practice type, and practice image
     usgs = 'USGS gauge: %s, %s' % (mi.selected_usgs, mi.selected_usgs_descriptor)
-    return mi.selected_project, mi.proj_practice,mi.img_source, fig_proj_noproj_st, fig_proj_noproj_vol, fig_ghost_sim, usgs, mi.active_tab#, str(mi.selected_link)
+    return mi.table_project_desc,mi.img_source, fig_proj_noproj_st, fig_proj_noproj_vol, fig_ghost_sim, usgs, mi.table_link_reduction,mi.table_ghost_perf,mi.active_tab, fig_map
 
 ###########################################################################################################################################################################
 #Excecution

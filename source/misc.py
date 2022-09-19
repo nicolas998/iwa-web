@@ -9,6 +9,7 @@ import json
 import geopandas as gp 
 import dash_bootstrap_components as dbc
 from dash import html
+from hydroeval import evaluator, kge, nse, pbias
 import base64
 ###########################################################################################################################################################################
 #Set global variables
@@ -53,35 +54,81 @@ class misc:
         self.usgs = pd.read_csv('%s%s/usgs.csv' % (path_maps,self.wat_name))
         self.projects = pd.read_csv('%s%s/project_locations.csv' % (path_maps,self.wat_name))
         self.__projects_assign_id__()
-        self.network = pd.read_csv('%s%s/net.csv' % (path_maps,self.wat_name), index_col = 0)
+        self.network = pd.read_csv('%s%s/net_linked.csv' % (path_maps,self.wat_name), index_col = 0)
         #Define watersheds with projects
         projects = []
         for k in watersheds.keys():
             projects.append({'value':k, 'label':watersheds[k]['name']})
         self.proj_names = projects
         #Define selected items
-        self.selected_project = None
+        self.selected_project = self.projects.loc[0,'Project']
+        print(self.selected_project)
         self.selected_usgs = '0%d' % self.usgs.loc[0,'USGS_ID']
         self.selected_usgs_descriptor = '%s, Area: %.1f km2' % tuple(self.usgs.loc[0,['SITE_NAME','DRAIN_AREA']].values.tolist())
         self.selected_link = 1
+        self.selected_link_peak_red = 0
+        self.selected_link_vol_red = 0
+        self.selected_link_area = 0
         self.active_tab = "tab_flood_reduction"
+        self.performance={'kge':0,'nse':0,'pbias':0,'nse_year':0}
         #Image 
         self.img_png = '../assets/grade_stabilizations.jpg'
         self.img_base64 = base64.b64encode(open(self.img_png, 'rb').read()).decode('ascii')
         self.img_source = 'data:image/png;base64,{}'.format(self.img_base64)
-        #Create an example table 
-        self.project_table()
+        #Create tables 
+        self.table_segment_reduction()
+        self.table_project_description()
+        self.table_ghost_performance()
 
-    def project_table(self):
+    def table_ghost_performance(self):
         table_header = [
-            html.Thead(html.Tr([html.Th("First Name"), html.Th("Last Name")]))
+            html.Thead(html.Tr([html.Th("Index"), html.Th("Value")]))
         ]
-        row1 = html.Tr([html.Td("Arthur"), html.Td("Dent")])
-        row2 = html.Tr([html.Td("Ford"), html.Td("Prefect")])
-        row3 = html.Tr([html.Td("Zaphod"), html.Td("Beeblebrox")])
-        row4 = html.Tr([html.Td("Trillian"), html.Td("Astra")])
-        table_body = [html.Tbody([row1, row2, row3, row4])]
-        self.table = dbc.Table(table_header + table_body, bordered=True)
+        val = '%.2f' % self.performance['nse']
+        row1 = html.Tr([html.Td("Nash Sutcliffe [-inf - 1]"), html.Td(val)])        
+        val = '%.2f' % self.performance['kge']
+        row2 = html.Tr([html.Td("Kling Gupta [-inf - 1]"), html.Td(val)])        
+        val = '%.2f' % self.performance['pbias']
+        row3 = html.Tr([html.Td("Volume bias [-100 - 100]"), html.Td(val)]) 
+        table_body = [html.Tbody([row1, row2, row3])]
+        self.table_ghost_perf = table_header + table_body             
+
+    def table_segment_reduction(self):        
+        table_header = [
+            html.Thead(html.Tr([html.Th("Item"), html.Th("Value")]))
+        ]        
+        area = '%.1f' % self.selected_link_area
+        if self.selected_link_peak_red < 0: self.selected_link_peak_red = 0
+        if self.selected_link_vol_red < 0: self.selected_link_vol_red = 0
+        peak_reduction = '%.1f' % self.selected_link_peak_red
+        volume_reduction = '%.1f' % self.selected_link_vol_red
+        row1 = html.Tr([html.Td("Segment upstream area [km2]"), html.Td(area)])
+        row2 = html.Tr([html.Td("Peak reduction [%]"), html.Td(peak_reduction)])
+        row3 = html.Tr([html.Td("Volume reduction [%]"), html.Td(volume_reduction)])        
+        table_body = [html.Tbody([row1, row2, row3])]
+        self.table_link_reduction = table_header + table_body        
+
+    def table_project_description(self):
+        table_header = [
+            html.Thead(html.Tr([html.Th("Name"), html.Th(self.selected_project)]))
+        ]
+        print(self.selected_project)
+        project_data = self.projects.loc[self.projects['Project'] == self.selected_project,['PRACTICE','County','NAME','BID PACK']]
+        print(project_data)
+        row1 = html.Tr([html.Td("Practice"), html.Td(project_data.PRACTICE)])
+        row2 = html.Tr([html.Td("County"), html.Td(project_data.County)])
+        row3 = html.Tr([html.Td("Owner"), html.Td(project_data.NAME)])
+        row4 = html.Tr([html.Td("Bid Pack"), html.Td(project_data['BID PACK'])])
+        table_body = [html.Tbody([row1, row2, row3,row4])]
+        self.table_project_desc = table_header + table_body
+
+    def get_performance(self, qo, qs):
+        for name, metric in zip(['kge','nse','pbias'], [kge, nse, pbias]):
+            self.performance[name] = evaluator(metric, qo, qs)[0]
+        self.performance['nse_year'] = pd.DataFrame([evaluator(nse, qo.loc[str(i)], qs.loc[str(i)])[0] for i in range(2002,2021)], index = range(2002,2021), columns = ['nse'])
+        
+
+
 
     def update_click_selection(self, text):
         if text.startswith('CC'):
@@ -93,13 +140,18 @@ class misc:
             number = int(self.selected_usgs)            
             self.selected_usgs_descriptor = '%s, Area: %.1f km2' % tuple(self.usgs.loc[self.usgs['USGS_ID'] == number,['SITE_NAME','DRAIN_AREA']].values.tolist()[0])
             self.active_tab = "tab_GHOST_performance"
+            #self.get_performance(self.selected_usgs)
         else:
             self.selected_link = int(text)
+            self.get_segment_area()            
             self.active_tab = "tab_flood_reduction"
 
     def plot_selected_usgs_gauge(self):
         #Read the data 
         q = pd.read_pickle('%s%s/%s.gzip' % (path_maps,self.wat_name, self.selected_usgs))        
+        #Get the performance for that gauge
+        self.get_performance(q['usgs_dis [cms]'], q['ghost_dis [cms]'])
+        #Make the figure
         fig = go.Figure()
         fig.add_trace(
             go.Scatter(x=list(q.index), 
@@ -122,12 +174,17 @@ class misc:
         )
         return fig
 
-    def plot_selected_link_streamflow(self):
+    def get_segment_area(self):
+        link = int(self.selected_link)
+        self.selected_link_area = self.network.loc[link,'USContArea']/1e6
+
+    def plot_selected_link_streamflow(self):    
         #Read the data of the selected link (This has to be changed)
         path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
         q = pd.read_csv(path2simulations, index_col=0)
         q = q.loc[300:600]
-        q.loc[q['Qcontrol']<0,'Qcontrol'] = np.nan
+        #q.loc[q['Qcontrol']<0,'Qcontrol'] = np.nan
+        self.selected_link_peak_red = 100-100*(q['Qproject'].max()/q['Qcontrol'].max())
         #Make the plot 
         fig = go.Figure()
         fig.add_trace(
@@ -154,6 +211,7 @@ class misc:
         #Read the data of the selected link (This has to be changed)
         path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
         q = pd.read_csv(path2simulations, index_col=0)
+        self.selected_link_vol_red = 100-100*(q['Vcum_project'].values[-1]/q['Vcum_control'].values[-1])
         #q = q.loc[300:600]
         #q.loc[q['Qcontrol']<0,'Qcontrol'] = np.nan
         #Make the plot 
@@ -262,6 +320,12 @@ class misc:
             text = t,
             hoverinfo='none'))
 
+        f = open('%s%s/boundaries/%d.json' % (path_maps,self.wat_name, self.selected_link))
+        geoJSON_subWat = json.load(f)
+        f.close()
+        color_swat = 'rgba(0,0,50,0.3)'
+
+        #Beauty layout
         fig.update_layout(
             hovermode='closest',
             showlegend=False,
@@ -273,6 +337,12 @@ class misc:
                         source = geoJSON_div,
                         type = 'fill',
                         color = color_wat
+                    ),
+                    dict(
+                        sourcetype = 'geojson',
+                        source = geoJSON_subWat,
+                        type = 'fill',
+                        color = color_swat
                     ),
                     dict(
                         sourcetype = 'geojson',
