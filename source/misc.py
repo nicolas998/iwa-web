@@ -79,6 +79,11 @@ class misc:
         self.table_segment_reduction()
         self.table_project_description()
         self.table_ghost_performance()
+        #Read the flows for the segments
+        self.segment_flows = {
+            'control': pd.read_parquet('%s%s/control.gzip' % (path_maps,self.wat_name)),
+            'project': pd.read_parquet('%s%s/project.gzip' % (path_maps,self.wat_name))
+        }
 
     def table_ghost_performance(self):
         table_header = [
@@ -180,19 +185,26 @@ class misc:
 
     def plot_selected_link_streamflow(self):    
         #Read the data of the selected link (This has to be changed)
-        path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
-        q = pd.read_csv(path2simulations, index_col=0)
-        q = q.loc[300:600]
+        #path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
+        #q = pd.read_csv(path2simulations, index_col=0)
+        #q = q.loc[300:600]
         #q.loc[q['Qcontrol']<0,'Qcontrol'] = np.nan
-        self.selected_link_peak_red = 100-100*(q['Qproject'].max()/q['Qcontrol'].max())
+        column = 'outflow %d' % self.selected_link
+        qc = self.segment_flows['control']
+        qc = qc.loc[0:250,column]
+        qp = self.segment_flows['project']
+        qp = qp.loc[0:250,column]
+        
+        self.selected_link_peak_red = 100-100*(qp.max()/qc.max())
         #Make the plot 
+        print(self.selected_link)
         fig = go.Figure()
         fig.add_trace(
-                go.Scatter(x=list(q.index), 
-                    y=list(q.Qcontrol), 
+                go.Scatter(x=list(qc.index), 
+                    y=list(qc), 
                     name = 'Control', line=dict(width=4)))
         fig.add_trace(
-                go.Scatter(x=list(q.index), y=list(q.Qproject), 
+                go.Scatter(x=list(qp.index), y=list(qp), 
                     name = 'Project', line=dict(width=4)))
         fig.update_layout(
             legend=dict(
@@ -202,26 +214,33 @@ class misc:
                 x=0.01),
             showlegend = False,
             margin=dict(t=0, b=0, l=0, r=0),
-            yaxis_title = "Streamflow [cfs]",
+            yaxis_title = "Streamflow [cms]",
             xaxis_title = 'Time [seconds]',
         )
         return fig
 
     def plot_selected_link_totalvol(self):
         #Read the data of the selected link (This has to be changed)
-        path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
-        q = pd.read_csv(path2simulations, index_col=0)
-        self.selected_link_vol_red = 100-100*(q['Vcum_project'].values[-1]/q['Vcum_control'].values[-1])
+        # path2simulations = '../../web_testing_ClearCreek/segment_analysis/CC_output/outflow '+str(self.selected_link)+'/timeseries_seg_'+str(self.selected_link)+'_US.csv'
+        # q = pd.read_csv(path2simulations, index_col=0)        
         #q = q.loc[300:600]
         #q.loc[q['Qcontrol']<0,'Qcontrol'] = np.nan
+        column = 'outflow %d' % self.selected_link
+        qc = self.segment_flows['control']
+        qc = qc[column].cumsum()*(300/1e6)
+        qp = self.segment_flows['project']
+        qp = qp[column].cumsum()*(300/1e6)
+        
+        self.selected_link_vol_red = 100-100*(qp.values[-1]/qc.values[-1])
+        
         #Make the plot 
         fig = go.Figure()
         fig.add_trace(
-                go.Scatter(x=list(q.index), 
-                    y=list(q.Vcum_control), 
+                go.Scatter(x=list(qc.index), 
+                    y=list(qc), 
                     name = 'Control', line=dict(width=4)))
         fig.add_trace(
-                go.Scatter(x=list(q.index), y=list(q.Vcum_project), 
+                go.Scatter(x=list(qp.index), y=list(qp), 
                     name = 'Project', line=dict(width=4)))
         fig.update_layout(
             legend=dict(
@@ -231,7 +250,7 @@ class misc:
                 x=0.01),
             showlegend = True,
             margin=dict(t=0, b=0, l=0, r=0),
-            yaxis_title = "Total volume [m3]",
+            yaxis_title = "Total volume [Mm3]",
             xaxis_title = 'Time [seconds]',
         )
         return fig
